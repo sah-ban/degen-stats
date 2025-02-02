@@ -28,10 +28,10 @@ export async function GET(req: NextRequest) {
         "Content-Type": "application/json",
       },
     });
-    // console.log("Success:", response.data);
+    console.log("DC sent", response.data);
 
     return NextResponse.json({
-      response,
+      fid,
     });
   } catch (error) {
     console.error("Unexpected error:", error);

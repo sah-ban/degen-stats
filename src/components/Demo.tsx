@@ -694,7 +694,7 @@ if (followData && followData?.followBack === "no")
             <tbody>
               {Array.isArray(allowanceData?.data) &&
                 allowanceData?.data.length > 1 &&
-                allowanceData.data.slice(0, -6).map((item, index) => (
+                allowanceData.data.slice(0, -38).map((item, index) => (
                   <tr key={index} className="odd:bg-slate-700 even:bg-slate-600">
                     <td className="px-4 py-2">
                       {formatSnapshotDay(item?.snapshot_day ?? "N/A")}
@@ -822,8 +822,6 @@ key={index}
     @{item?.fname ?? "N/A"}
   </div>
 </td>
-
-
        <td className="px-4 py-2">{item?.points ?? "N/A"}</td>
      </tr>
    ))}
@@ -841,20 +839,24 @@ function IsFollowing( ) {
       <h1 className="text-2xl font-bold text-sky-400">{headers[activeDiv]}</h1>
     </div>
   </header>
-  <div className="text-center px-10 py-5 mt-14 font-bold text-lime-400 text-2xl h-[calc(100vh-140px)]">
+  <div className="text-center px-10 py-5 mt-10 font-bold text-lime-400 text-2xl h-[calc(100vh-140px)]">
   Follow cashlessman.eth to access this Frame
   <div
-      className="bg-[#8B5CF6] p-3 text-center mt-7 text-base/6 font-semibold cursor-pointer text-white"
+      className="bg-[#8B5CF6] p-3 text-center mt-3 text-base/6 font-semibold cursor-pointer text-white"
       onClick={()=>sdk.actions.viewProfile({ fid: 268438 })}
       >
         Follow
       </div>
       <div
       className="text-center mt-7 text-sm font-semibold text-white"
+      >If you just followed, please wait a few minutes for the system to sync your data and come back later.
+      </div>
+      <div
+      className="text-center mt-7 text-sm font-semibold text-white"
       >If you were already following cashlessman.eth (not just now) and still can&apos;t access this frame, please send a DC.
       </div>
       <div
-      className="bg-[#8B5CF6] p-3 text-center mt-2 text-base/6 font-semibold cursor-pointer text-white"
+      className="bg-[#8B5CF6] p-3 text-center mt-3 text-base/6 font-semibold cursor-pointer text-white"
       onClick={() => sdk.actions.openUrl(sendDC)}      >
         Send DC
       </div>

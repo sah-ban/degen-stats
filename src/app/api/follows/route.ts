@@ -23,9 +23,8 @@ query isFollowing($fid: Identity!){
 export async function GET(req: NextRequest) {
 
   const ufid = req.nextUrl.searchParams.get("fid");
-  // const fid = ufid === 8 ? 1 : ufid ;
-  const fid = Number(ufid) === 268438 ? 553094 : ufid;
-  
+  const fid = [268438, 3338, 12].includes(Number(ufid)) ? 16795 : ufid;
+  // console.log("FID: " + fid);
 
   if (!fid) {
     console.log("Error: userId parameter is missing");
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest) {
     }
 
     // console.log(
-    //   "Airstack API response (user data):",
+    //   "Airstack API response",
     //   JSON.stringify(userData.data, null, 2)
     // );
 
