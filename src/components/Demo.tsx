@@ -28,7 +28,8 @@ import {
 import { config } from "~/components/providers/WagmiProvider";
 import { BaseError, UserRejectedRequestError } from "viem";
 import { truncateAddress } from "~/lib/truncateAddress";
-
+import { Menu, User, Settings, X } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function Demo(
   { title }: { title?: string } = { title: "demo title" }
@@ -519,6 +520,18 @@ useEffect(() => {
   } 
 }, [refid]);
 
+const STORAGE_KEY = "lastVisitDate";
+
+useEffect(() => {
+  const today = new Date().toISOString().split("T")[0]; // Get only YYYY-MM-DD
+
+  const storedDate = localStorage.getItem(STORAGE_KEY);
+
+  if (!storedDate || storedDate !== today) {
+    alert("Hello"); // Show alert if first visit or new day
+    localStorage.setItem(STORAGE_KEY, today); // Store today's date
+  }
+}, []);
 // useEffect(() => {
 //   if (followData && followData?.followBack === "no") {
 //     sdk.actions.viewProfile({ fid: 268438 })
@@ -641,11 +654,24 @@ const priceValue = pricerData?.price || 0;
       {/* Header */}
       <h1 className="text-2xl font-bold text-center mb-4 hidden">{title}</h1>
 
-      <header className="bg-slate-800 text-white py-3">
-    <div className="container mx-auto px-4 text-center">
-      <h1 className="text-2xl font-bold text-sky-400">{headers[activeDiv]}</h1>
-    </div>
-  </header>
+      <header className="bg-slate-800 text-white py-2 flex flex-row items-center">
+  {/* First div - Sidebar */}
+  <div className="flex-none pl-3">
+    <MobileSidebar />
+  </div>
+
+  {/* Spacer div to push the second div to center */}
+  <div className="flex-grow"></div>
+
+  {/* Second div - Centered Text */}
+  <div className="text-center text-2xl font-bold text-sky-400">
+    {headers[activeDiv]}
+  </div>
+
+  {/* Spacer div to balance layout */}
+  <div className="flex-grow"></div>
+</header>
+
 
       {/* Body */}
       <main className="flex-grow overflow-auto">
@@ -1490,6 +1516,86 @@ function Mint(){
   )
  }
 
+
+//  function LocalStorage(){
+//    const STORAGE_KEY = "checkboxValue";
+ 
+//    // Retrieve initial value from localStorage or default to false
+//    const [isChecked, setIsChecked] = useState<boolean>(() => {
+//      const storedValue = localStorage.getItem(STORAGE_KEY);
+//      return storedValue ? JSON.parse(storedValue) : false;
+//    });
+ 
+//    // Update localStorage when isChecked changes
+//    useEffect(() => {
+//      localStorage.setItem(STORAGE_KEY, JSON.stringify(isChecked));
+//    }, [isChecked]);
+ 
+//    return (
+//      <div className="flex flex-col items-center gap-2 p-4">
+//        <label className="flex items-center gap-2 cursor-pointer">
+//          <input
+//            type="checkbox"
+//            checked={isChecked}
+//            onChange={(e) => setIsChecked(e.target.checked)}
+//            className="w-5 h-5"
+//          />
+//          <span className="text-lg">Check me</span>
+//        </label>
+//        <p className="text-lg">
+//          {isChecked ? "Checkbox is checked ✅" : "Checkbox is unchecked ❌"}
+//        </p>
+//      </div>
+//    );
+//  };
+ 
+ function MobileSidebar() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 text-white bg-slate-900 rounded-md"
+      >
+        <Menu size={24} />
+      </button>
+
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50"
+          onClick={() => setIsOpen(false)}
+        >
+          <motion.div
+            initial={{ x: -200 }}
+            animate={{ x: 0 }}
+            exit={{ x: -200 }}
+            className="fixed top-0 left-0 h-full w-2/3 bg-[#1e293b] text-white p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setIsOpen(false)}
+              className="absolute top-4 right-4 text-white"
+            >
+ <X size={24} />            </button>
+            <ul className="space-y-4 mt-8">
+
+              <li className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-md">
+                <User size={20} /> Profile
+              </li>
+              <li className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-md">
+                <Settings size={20} /> Settings
+              </li>
+            </ul>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+ 
 }
 const renderError = (error: Error | null) => {
   if (!error) return null;
