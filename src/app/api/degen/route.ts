@@ -19,13 +19,18 @@ export async function GET(req: NextRequest) {
   try {
     const allowancesApiUrl = `https://api.degen.tips/airdrop2/allowances?fid=${fid}`;
     const pointsApiUrl = `https://api.degen.tips/airdrop2/current/points?fid=${fid}`;
+    const raindropApiUrl = `https://api.degen.tips/raindrop/current/points?fid=${fid}`;
 
-    const [allowancesResponse, pointsResponse] = await Promise.all([
+    const [allowancesResponse, pointsResponse, rainResponse] = await Promise.all([
       axios.get(allowancesApiUrl).catch((err) => {
         console.error("Allowances API error:", err.message);
         return { data: [] }; // Fallback to empty array
       }),
       axios.get(pointsApiUrl).catch((err) => {
+        console.error("Points API error:", err.message);
+        return { data: [] }; // Fallback to empty array
+      }),
+      axios.get(raindropApiUrl).catch((err) => {
         console.error("Points API error:", err.message);
         return { data: [] }; // Fallback to empty array
       }),
@@ -38,9 +43,13 @@ export async function GET(req: NextRequest) {
     const pointsData = Array.isArray(pointsResponse.data)
       ? pointsResponse.data
       : [];
+      const rainData = Array.isArray(rainResponse.data)
+      ? rainResponse.data
+      : [];
 
     let points = "0";
     let pointsRank = "N/A";
+    let rainPoints= "0";
 
     if (pointsData.length > 0) {
       points = pointsData[0].points || "0";
@@ -48,16 +57,21 @@ export async function GET(req: NextRequest) {
     } else {
       console.log("No data received from the points API");
     }
-
+    if (rainData.length > 0) {
+      rainPoints = rainData[0].points || "0";
+    } else {
+      console.log("No data received from the points API");
+    }
     // console.log("--------------------------------");
     // console.log("Allowances Data:", allowancesData.length);
     // console.log("Points:", points);
     // console.log("Points Rank:", pointsRank);
-
+// console.log(rainPoints)
     return NextResponse.json({
       allowancesData,
       points,
       pointsRank,
+      rainPoints,
     });
   } catch (error) {
     console.error("Unexpected error:", error);

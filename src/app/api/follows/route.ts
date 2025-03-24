@@ -23,7 +23,7 @@ query isFollowing($fid: Identity!){
 export async function GET(req: NextRequest) {
 
   const ufid = req.nextUrl.searchParams.get("fid");
-  const fid = [268438, 3338, 12].includes(Number(ufid)) ? 16795 : ufid;
+  const fid = [268438, 3338, 12, 680, 451, 11124, 725, 1626, 2, 239, 5650, 16085, 419741, 351897].includes(Number(ufid)) ? 16795 : ufid;
   // console.log("FID: " + fid);
 
   if (!fid) {

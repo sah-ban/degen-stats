@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 // import sdk, {
 //   FrameNotificationDetails,
 //   type FrameContext,
@@ -15,6 +15,20 @@ type Context,
 // import { Button } from "~/components/ui/Button";
 import Link from 'next/link';
 import Image from 'next/image';
+import axios from "axios";
+import { encodeFunctionData } from 'viem';
+import { abi } from '../contracts/abi';
+import {
+  useAccount,
+  useSendTransaction,
+  useConnect,
+  useWaitForTransactionReceipt,
+
+} from "wagmi";
+import { config } from "~/components/providers/WagmiProvider";
+import { BaseError, UserRejectedRequestError } from "viem";
+import { truncateAddress } from "~/lib/truncateAddress";
+
 
 export default function Demo(
   { title }: { title?: string } = { title: "demo title" }
@@ -26,6 +40,8 @@ export default function Demo(
   const [addFrameResult, setAddFrameResult] = useState("");
   const [activeDiv, setActiveDiv] = useState<'Home' | 'AllowanceTable' | 'TipsTable' | 'Leaderboard'>('Home'); // Explicitly typed
   const [activeBoard, setActiveBoard] = useState<'RainBoard' | 'PointsBoard' | 'AllowanceBoard'>('RainBoard'); // Explicitly typed
+  const { isConnected } = useAccount();
+  const [txHash, setTxHash] = useState<string | null>(null);
 
 
   // const [addFrameResult, setAddFrameResult] = useState("");
@@ -34,6 +50,7 @@ export default function Demo(
   // const [sendNotificationResult, setSendNotificationResult] = useState("");
   // const [setSendNotificationResult] = useState("");
   const [clicked, setClicked] = useState(false);
+  const { connect } = useConnect();
 
 
   useEffect(() => {
@@ -51,6 +68,7 @@ export default function Demo(
       load();
     }
   }, [isSDKLoaded]);
+  const [refid, setRefid ] = useState(undefined);
 
   const addFrame = useCallback(async () => {
     try {
@@ -112,6 +130,18 @@ export default function Demo(
   // }, [context, notificationDetails]);
   ////////////////////////////////////////////////////////////////
 
+  const {
+    sendTransaction,
+    error: sendTxError,
+    isError: isSendTxError,
+    isPending: isSendTxPending,
+  } = useSendTransaction();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+  useWaitForTransactionReceipt({
+    hash: txHash as `0x${string}`,
+  });
+
 interface allowancesData {
   snapshot_day: string;
   user_rank: string;
@@ -152,9 +182,9 @@ interface RainResponse {
   interface LeaderboardResponse {
     leaderData: leader[];
   }
-interface FollowResponse {
-  followBack: string;
-  }
+// interface FollowResponse {
+//   followBack: string;
+//   }
   interface rainboardResponse {
     rainLeaderData: rainleader[];
   }
@@ -175,6 +205,17 @@ interface FollowResponse {
     remaining_tip_allowance: string;
     user_rank:string;
   }
+  interface PriceResponse {
+    price: number;
+    t24: number;
+    t1: number;
+  }
+  interface ProfileResponse {
+    pfpUrl: string;
+    username: string;
+    display_name: string;
+    fids: string;
+    }
 const [allowanceData, setAllowanceData] = useState<AllowanceResponse | null>(null);
 
 const fetchAllowance = useCallback(async (fid: string) => {
@@ -306,38 +347,38 @@ const fetchLeaderboard = useCallback(async () => {
   }
 }, []);
 
-const dc = useCallback((fid: string, username: string) => {
-  try {
-     fetch(`/api/dc?fid=${fid}&username=${username}`);
+// const dc = useCallback((fid: string, username: string) => {
+//   try {
+//      fetch(`/api/dc?fid=${fid}&username=${username}`);
 
-  } catch (err) {
-    console.error("Error sendinding DC from warpcast", err);
-  }
-}, []);
-const [followData, setFollowData] = useState<FollowResponse | null>(null);
+//   } catch (err) {
+//     console.error("Error sendinding DC from warpcast", err);
+//   }
+// }, []);
+// const [followData, setFollowData] = useState<FollowResponse | null>(null);
 
-const followBack = useCallback(async (fid: string) => {
-  try {
-    const followResponse = await fetch(`/api/follows?fid=${fid}`);
-    if (!followResponse.ok) {
-      throw new Error(`Fid HTTP error! Status: ${followResponse.status}`);
-    }
-    const followResponseData = await followResponse.json();
+// const followBack = useCallback(async (fid: string) => {
+//   try {
+//     const followResponse = await fetch(`/api/follows?fid=${fid}`);
+//     if (!followResponse.ok) {
+//       throw new Error(`Fid HTTP error! Status: ${followResponse.status}`);
+//     }
+//     const followResponseData = await followResponse.json();
 
-    if (
-      followResponseData
-        ) {
-        setFollowData({
-        followBack: followResponseData.isFollowing,
-      });
-    } else {
-      throw new Error("Invalid response structure");
-    }
-  } catch (err) {
-    console.error("Error fetching followBack data", err);
-  }
+//     if (
+//       followResponseData
+//         ) {
+//         setFollowData({
+//         followBack: followResponseData.isFollowing,
+//       });
+//     } else {
+//       throw new Error("Invalid response structure");
+//     }
+//   } catch (err) {
+//     console.error("Error fetching followBack data", err);
+//   }
 
-}, []);
+// }, []);
 
 const [rainboardData, setRainboardData] = useState<rainboardResponse | null>(null);
 
@@ -364,6 +405,32 @@ const fetchrainboard = useCallback(async () => {
     console.error("Error fetching leaderboard", err);
   }
 }, []);
+const [pricerData, setPriceData] = useState<PriceResponse | null>(null);
+
+const price = useCallback(async () => {
+  try {
+    const priceResponse = await fetch(`/api/onchainData`);
+    if (!priceResponse.ok) {
+      throw new Error(`Fid HTTP error! Status: ${priceResponse.status}`);
+    }
+    const priceResponseData = await priceResponse.json();
+
+    if (
+      priceResponseData
+        ) {
+          setPriceData({
+        price: priceResponseData.price,
+        t24: priceResponseData.priceChange24h,
+        t1: priceResponseData.priceChange1h,
+      });
+    } else {
+      throw new Error("Invalid response structure");
+    }
+  } catch (err) {
+    console.error("Error fetching price data", err);
+  }
+
+}, []);
 const [allowanceboardData, setAllowanceboardData] = useState<allowanceboardResponse | null>(null);
 
 const fetchAllowanceboard = useCallback(async () => {
@@ -389,6 +456,29 @@ const fetchAllowanceboard = useCallback(async () => {
     console.error("Error fetching leaderboard", err);
   }
 }, []);
+
+const [profileData, setProfileData] = useState<ProfileResponse >();
+
+const fetchProfile = useCallback(async (fid: string) => {
+  try {
+    const profileResponse = await fetch(`/api/profile?fid=${fid}`);
+    if (!profileResponse.ok) {
+      throw new Error(`Fid HTTP error! Status: ${profileResponse.status}`);
+    }
+    const profileResponseData = await profileResponse.json();
+    setProfileData({
+      pfpUrl: profileResponseData.pfpUrl,
+      username: profileResponseData.username,
+      display_name: profileResponseData.display_name,
+      fids: profileResponseData.fids
+        
+      });
+  } catch (err) {
+    console.error("Error fetching rain data", err);
+  }
+
+}, []);
+
 const headers: { Home: string; AllowanceTable: string; TipsTable: string; Leaderboard: string } = {
   Home: "$DEGEN Stats",
   AllowanceTable: "Allowance Tracker",
@@ -396,36 +486,44 @@ const headers: { Home: string; AllowanceTable: string; TipsTable: string; Leader
   Leaderboard: "Leaderboard",
 };
 
+const hasFetched = useRef(false);
+
+useEffect(() => {
+  if (!hasFetched.current) {
+    fetchLeaderboard();
+    fetchrainboard()
+    fetchAllowanceboard()
+    price()
+    hasFetched.current = true; // Prevents future executions
+  }
+}, []);
 useEffect(() => {
   if (context?.user.fid) {
-    followBack(String(context.user.fid));
+    // followBack(String(context.user.fid));
     fetchAllowance(String(context.user.fid));
     fetchPoints(String(context.user.fid));
     fetchTips(String(context.user.fid));
     fetchRain(String(context.user.fid));
-    fetchLeaderboard();
-    fetchrainboard()
-    fetchAllowanceboard()
+    fetchProfile(String(context.user.fid));
   } 
 }, [context?.user.fid]);
-////////////////////////////////////////////////////////////////////////////////////////////////
+useEffect(() => {
+  if (refid) {
+    fetchAllowance(String(refid));
+    fetchPoints(String(refid));
+    fetchTips(String(refid));
+    fetchRain(String(refid));
+    fetchProfile(String(refid));
+  } 
+}, [refid]);
+
 // useEffect(() => {
-//   if (context?.user.fid && followData && followData?.followBack === "yes") {
-//     fetchAllowance(String(context.user.fid));
-//     fetchPoints(String(context.user.fid));
-//     fetchTips(String(context.user.fid));
-//     fetchRain(String(context.user.fid));
-//     fetchLeaderboard();
-//     // dc(String(context.user.fid),String(context.user.username)); 
+//   if (followData && followData?.followBack === "no") {
+//     sdk.actions.viewProfile({ fid: 268438 })
+//     dc(String(context?.user.fid),String(context?.user.username)); 
+
 //   }
 // }, [followData]);
-useEffect(() => {
-  if (followData && followData?.followBack === "no") {
-    sdk.actions.viewProfile({ fid: 268438 })
-    dc(String(context?.user.fid),String(context?.user.username)); 
-
-  }
-}, [followData]);
 
 const handleClick = () => {
   addFrame(); // Call the existing addFrame function
@@ -445,22 +543,22 @@ const formatSnapshotDay = (dateString: string) => {
   const day = date.getDate().toString().padStart(2, '0');
   return `${day}-${month}`;
 };
-
+const rem=allowanceData?.data[0]?.remaining_tip_allowance || 0
 const shareTextData = encodeURIComponent(
-  `My $DEGEN stats \n \nV2 frame by @cashlessman.eth`
+  `My $DEGEN stats \n \nframe by @cashlessman.eth`
 );
-const shareText = encodeURIComponent(
-  `$DEGEN stats \n \nV2 frame by @cashlessman.eth`
-);
+// const shareText = encodeURIComponent(
+//   `$DEGEN stats \n \nframe by @cashlessman.eth`
+// );
 
 const tiped =  encodeURIComponent(
-``
+`${rem} $DEGEN`
 );
 const fid= context?.user.fid;
 
 const shareUrlData = `https://warpcast.com/~/compose?text=${shareTextData}&embeds[]=https://degen-v2.vercel.app?fid=${fid}&${Date.now()}`;
-const shareUrl = `https://warpcast.com/~/compose?text=${shareText}&embeds[]=https://degen-v2.vercel.app`;
-const sendDC = `https://warpcast.com/~/inbox/create/268438?text=Hey! I'm unable to access the frame, can you please check.`;
+// const shareUrl = `https://warpcast.com/~/compose?text=${shareText}&embeds[]=https://degen-v2.vercel.app`;
+// const sendDC = `https://warpcast.com/~/inbox/create/268438?text=Hey! I'm unable to access the frame, can you please check.`;
 
 const tipUrl = `https://warpcast.com/~/compose?text=${tiped}&parentCastHash=0xefeba64cabdcfbc619b7d6003f993f460e3a6cef`;
 const calculateRanks = (data: rainleader[]): rainleader[] => {
@@ -476,7 +574,16 @@ const calculateRanks = (data: rainleader[]): rainleader[] => {
 const rankedData: rainleader[] = rainboardData?.rainLeaderData
 ? calculateRanks([...rainboardData.rainLeaderData].sort((a, b) => Number(b.points) - Number(a.points)))
 : [];
+const totalValidTip = tipsData?.tipsData
+.filter(entry => entry.tip_status === "valid")
+.reduce((sum, entry) => sum + Number(entry.tip_amount), 0)|| 0;
 
+const totalInvalidTip = tipsData?.tipsData
+.filter(entry => entry.tip_status !== "valid")
+.reduce((sum, entry) => sum + Number(entry.tip_amount), 0)|| 0;
+const TotalTips= totalValidTip+ totalInvalidTip
+// alert (totalInvalidTip)
+const priceValue = pricerData?.price || 0;
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
   }
@@ -507,10 +614,10 @@ const rankedData: rainleader[] = rainboardData?.rainLeaderData
     
     );
 
-if (followData && followData?.followBack === "no")
- return (
-      <IsFollowing/>
-      );
+// if (followData && followData?.followBack === "no")
+//  return (
+//       <IsFollowing/>
+//       );
 
   return (
 <div className="w-auto bg-slate-900 text-white h-screen">
@@ -668,12 +775,11 @@ if (followData && followData?.followBack === "no")
   function Home( ) {
     return (
 <div className="w-auto bg-slate-900 text-white mt-3 mx-2 flex flex-col justify-between h-[calc(100vh-130px)]">
+  <Search/>
   <Stats />
-  <div className="flex items-center justify-center">          <img
-            src="https://wrpcd.net/cdn-cgi/imagedelivery/BXluQx4ige9GuW0Ia56BHw/dda7b6c0-d6c1-4ad4-e0b5-61495dbe6a00/original"
-            alt="Degen Logo"
-            className="w-20 aspect-square rounded-lg"
-          /></div>
+ <Sum/>
+ <Mint/>
+  <Price/>
   <Details />
 </div>
 
@@ -688,35 +794,14 @@ if (followData && followData?.followBack === "no")
   className={`bg-[#8B5CF6] p-3 mt-2 justify-self-center flex-1 text-center cursor-pointer ${context?.client.added ? "hidden" : ""}`}
   onClick={handleClick}
   >
-{clicked ? "Frame Added" : "Add Frame"}</div>
+{clicked ? addFrameResult : "Add Frame"}</div>
   <div className="text-base/6 font-semibold">
 
     <div className="flex flex-row justify-self-center w-full">
 
-    <div
-  className="bg-[#8B5CF6] p-3 mt-2 flex flex-col flex-1 items-center justify-center text-center cursor-pointer"
-  onClick={() => sdk.actions.openUrl(shareUrlData)}
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="size-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-    />
-  </svg>
-
-  <span className="block text-sm">(with data)</span>
-</div>
 
 
-<div
+{/* <div
   className="bg-[#8B5CF6] p-3 mt-2 ml-2 flex flex-col flex-1 items-center justify-center text-center cursor-pointer"
   onClick={() => sdk.actions.openUrl(shareUrl)}
 >
@@ -735,20 +820,7 @@ if (followData && followData?.followBack === "no")
     />
   </svg>
 
-  <span className="block text-sm">(without data)</span>
-</div>
-
-      {Array.isArray(allowanceData?.data) && allowanceData?.data.length > 0 && (
-        <div
-  className="bg-[#8B5CF6] p-3 mt-2 ml-2 justify-self-center flex-1 text-center cursor-pointer flex items-center justify-center"
-  onClick={() => sdk.actions.openUrl(tipUrl)}
->
-  Tip <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-</svg>
-</div>
-
-      )}
+</div> */}
       
     </div>
   </div>
@@ -776,26 +848,7 @@ if (followData && followData?.followBack === "no")
     </div> */}
     <div className="flex flex-row justify-self-center w-full mb-2">
 
-    <div
-  className="bg-[#8B5CF6] p-3 text-center mt-2 text-base font-semibold flex w-full items-center justify-center gap-2 cursor-pointer"
-  onClick={() => sdk.actions.openUrl("https://warpcast.com/cashlessman.eth")}
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="size-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-    />
-  </svg> 
-  cashlessman.eth
-</div>
+
 
     {/* <div
       className="bg-[#8B5CF6] p-3 text-center mt-2 ml-2 text-base/6 font-semibold flex-1 cursor-pointer"
@@ -809,16 +862,16 @@ if (followData && followData?.followBack === "no")
     )}
   function Stats( ) {
     return (
-      <div className="flex flex-col w-full bg-[#1e293b] text-white border-2 border-lime-400 text-xl">
+      <div className="flex flex-col w-full bg-[#1e293b] text-white border-2 border-lime-400 text-xl mt-2">
       <div className="flex items-center justify-center text-white mt-3">
         <img
-          src={context?.user.pfpUrl}
+          src={profileData?.pfpUrl}
           alt="Profile"
           className="w-14 aspect-square rounded-lg mr-4"
         />
         <div className="flex flex-col">
-          <span className="flex">{context?.user.displayName ?? "Anonymous"}</span>
-          <span className="flex text-gray-400">@{context?.user.username ?? "unknown"}</span>
+          <span className="flex">{profileData?.display_name ?? "Anonymous"}</span>
+          <span className="flex text-gray-400">@{profileData?.username ?? "unknown"}</span>
         </div>
       </div>
       <div className="flex justify-center text-[#38BDf8] mt-1">{formattedTime}&nbsp; &nbsp;{formattedDate}</div>
@@ -884,8 +937,7 @@ if (followData && followData?.followBack === "no")
           {Array.isArray(allowanceData?.data) && allowanceData?.data.length > 0 ? (
             <tbody>
               {Array.isArray(allowanceData?.data) &&
-                allowanceData?.data.length > 1 &&
-                allowanceData.data.slice(0, -38).map((item, index) => (
+                allowanceData.data.map((item, index) => (
                   <tr key={index} className="odd:bg-slate-700 even:bg-slate-600">
                     <td className="px-4 py-2">
                       {formatSnapshotDay(item?.snapshot_day ?? "N/A")}
@@ -929,7 +981,7 @@ if (followData && followData?.followBack === "no")
     {Array.isArray(tipsData?.tipsData) && tipsData?.tipsData.length > 0 ? (
  <tbody>
  {Array.isArray(tipsData?.tipsData) &&
-tipsData.tipsData.slice(0, -5).map((item, index) => (
+tipsData.tipsData.map((item, index) => (
 <tr
 key={index} className="odd:bg-slate-700 even:bg-slate-600">
    
@@ -938,7 +990,7 @@ key={index} className="odd:bg-slate-700 even:bg-slate-600">
        </td>
        <td className="px-4 py-2 cursor-pointer" onClick={()=>sdk.actions.viewProfile({ fid: Number(item?.recipient_fid) })}>{item?.recipient_fid ?? "N/A"}</td>
        <td className="px-4 py-2">{item?.tip_amount ?? "N/A"}</td>
-       <td className="px-4 py-2">{item?.tip_status ?? "N/A"}</td>
+       <td className={item?.tip_status === "invalid" ? "text-red-500" : ""}>{item?.tip_status ?? "N/A"}</td>
        <td className="px-4 py-2 text-3xl cursor-pointer" onClick={()=>sdk.actions.openUrl(`https://warpcast.com/~/conversations/${(item?.cast_hash).replace(/\\/, '0')}`)}><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
 </svg>
@@ -981,13 +1033,13 @@ key={index} className="odd:bg-slate-700 even:bg-slate-600">
     <td className="px-4 py-2">
   {pointsData?.pointsRank ?? "N/A"}    </td>
        <td className="px-4 py-2">
-  <div className="flex items-center" onClick={()=>sdk.actions.viewProfile({ fid: Number(context?.user.fid) })}>
+  <div className="flex items-center" onClick={()=>sdk.actions.viewProfile({ fid: Number(profileData?.fids) })}>
     <img
-      src={context?.user.pfpUrl}
+      src={profileData?.pfpUrl}
       alt="Profile"
       className="w-10 h-10 rounded-lg mr-4"
     />
-     @{context?.user.username ?? "N/A"}
+     @{profileData?.username?? "N/A"}
   </div>
 </td>
 
@@ -1000,7 +1052,7 @@ leaderboardData.leaderData.map((item, index) => (
 key={index}
 //  className="odd:bg-slate-700 even:bg-slate-600">
      className={`odd:bg-slate-700 even:bg-slate-600 ${
-      context?.user.fid?.toString() === item?.fid
+      profileData?.fids ?.toString() === item?.fid
       ? "border-2 border-lime-400" : ""
   }`}>
        <td className="px-4 py-2">
@@ -1031,7 +1083,7 @@ key={index}
       <div className="bg-[#1E293B] overflow-auto">
       <table className="table-auto w-full bg-slate-700 text-lime-400 text-center">
         <thead className="sticky top-0 bg-slate-700">
-          <tr className="text-white text-violet-400 lime-400">
+          <tr className="text-white text-violet-400 lime-400 border-b border-lime-400">
             <th className="px-4 py-2">Rank</th>
             <th className="px-4 py-2">User</th>
             <th className="px-4 py-2">Points</th>
@@ -1042,7 +1094,7 @@ key={index}
             <tr
               key={index}
               className={`odd:bg-slate-700 even:bg-slate-600 ${
-                context?.user.fid?.toString() === item.fid ? "border-2 border-lime-400" : ""
+                profileData?.fids?.toString() === item.fid ? "border-2 border-lime-400" : ""
               }`}
             >
               <td className="px-4 py-2">{item.rank}</td>
@@ -1093,13 +1145,13 @@ key={index}
     <td className="px-4 py-2">
   {allowanceData?.data[0]?.user_rank ?? "N/A"}    </td>
        <td className="px-4 py-2">
-  <div className="flex items-center cursor-pointer" onClick={()=>sdk.actions.viewProfile({ fid: Number(context?.user.fid) })}>
+  <div className="flex items-center cursor-pointer" onClick={()=>sdk.actions.viewProfile({ fid: Number(profileData?.fids) })}>
     {/* <img
       src={context?.user.pfpUrl}
       alt="Profile"
       className="w-10 h-10 rounded-lg mr-4"
     /> */}
-     {context?.user.fid ?? "N/A"}
+     {profileData?.fids ?? "N/A"}
   </div>
 </td>
 
@@ -1114,7 +1166,7 @@ allowanceboardData.allowLeaderData.map((item, index) => (
 key={index}
 //  className="odd:bg-slate-700 even:bg-slate-600">
      className={`odd:bg-slate-700 even:bg-slate-600 ${
-      context?.user.fid?.toString() === item?.fid
+      profileData?.fids?.toString() === item?.fid
       ? "border-2 border-lime-400" : ""
   }`}>
        <td className="px-4 py-2">
@@ -1141,71 +1193,314 @@ key={index}
 
     );
   }
-function IsFollowing( ) {
-    return (
-<div className="w-auto bg-slate-900 flex flex-col h-screen">
-<header className="bg-slate-800 py-3">
-    <div className="container px-4 text-center">
-      <h1 className="text-2xl font-bold text-sky-400">{headers[activeDiv]}</h1>
+// function IsFollowing( ) {
+//     return (
+// <div className="w-auto bg-slate-900 flex flex-col h-screen">
+// <header className="bg-slate-800 py-3">
+//     <div className="container px-4 text-center">
+//       <h1 className="text-2xl font-bold text-sky-400">{headers[activeDiv]}</h1>
+//     </div>
+//   </header>
+//   <div className="text-center px-10 py-5 mt-10 font-bold text-lime-400 text-2xl h-[calc(100vh-140px)]">
+//   Follow cashlessman.eth to access this Frame
+//   <div
+//   className="bg-[#8B5CF6] p-3 mt-3 text-base font-semibold cursor-pointer text-white flex items-center justify-center gap-2"
+//   onClick={() => sdk.actions.viewProfile({ fid: 268438 })}
+// >
+//   <svg
+//     xmlns="http://www.w3.org/2000/svg"
+//     fill="none"
+//     viewBox="0 0 24 24"
+//     strokeWidth={1.5}
+//     stroke="currentColor"
+//     className="size-6"
+//   >
+//     <path
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//       d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"
+//     />
+//   </svg>
+//   Follow
+// </div>
+
+//       <div
+//       className="text-center mt-7 text-sm font-semibold text-white"
+//       >If you just followed, please wait a few minutes for the system to sync your data, Add this frame and come back later.
+//       </div>
+//       <div
+//   className={`bg-[#8B5CF6] p-3 mt-2 justify-self-center flex-1 text-center text-white cursor-pointer ${context?.client.added ? "hidden" : ""}`}
+//   onClick={handleClick}
+//   >
+// {clicked ? "Frame Added" : "Add Frame"}</div>
+//       <div
+//       className="text-center mt-7 text-sm font-semibold text-white"
+//       >If you were already following cashlessman.eth (not just now) and still can&apos;t access this frame, please send a DC.
+//       </div>
+//       <div
+//   className="bg-[#8B5CF6] p-3 mt-3 text-base font-semibold cursor-pointer text-white flex items-center justify-center gap-2"
+//   onClick={() => sdk.actions.openUrl(sendDC)}
+// >
+//   <svg
+//     xmlns="http://www.w3.org/2000/svg"
+//     fill="none"
+//     viewBox="0 0 24 24"
+//     strokeWidth={1.5}
+//     stroke="currentColor"
+//     className="size-6"
+//   >
+//     <path
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//       d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
+//     />
+//   </svg>
+//   Send DC
+// </div>
+
+//   </div>
+
+// </div>
+
+
+//     );
+//   }
+function Sum( ) {
+  return (
+    <div className="flex flex-col w-full px-10 text-lg">
+      <div className="flex flex-row justify-between">
+        <span className="text-green-500">Valid Tips given:</span>
+        <span className="text-green-500">
+         {totalValidTip}  |  ${(totalValidTip * priceValue).toFixed(2)}
+        </span>
+      </div>
+      <div className="flex flex-row justify-between">
+        <span className="text-red-500">Invalid Tips given:</span>
+        <span className="text-red-500">
+          {totalInvalidTip}  |  ${(totalInvalidTip * priceValue).toFixed(2)}
+        </span>
+      </div>
+      <div className="flex flex-row justify-between">
+        <span>Total Tips given:</span>
+        <span>
+          {TotalTips}  |  ${(TotalTips * priceValue).toFixed(2)}
+        </span>
+      </div>
+    
     </div>
-  </header>
-  <div className="text-center px-10 py-5 mt-10 font-bold text-lime-400 text-2xl h-[calc(100vh-140px)]">
-  Follow cashlessman.eth to access this Frame
-  <div
-  className="bg-[#8B5CF6] p-3 mt-3 text-base font-semibold cursor-pointer text-white flex items-center justify-center gap-2"
-  onClick={() => sdk.actions.viewProfile({ fid: 268438 })}
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="size-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"
-    />
-  </svg>
-  Follow
-</div>
-
-      <div
-      className="text-center mt-7 text-sm font-semibold text-white"
-      >If you just followed, please wait a few minutes for the system to sync your data and come back later.
-      </div>
-      <div
-      className="text-center mt-7 text-sm font-semibold text-white"
-      >If you were already following cashlessman.eth (not just now) and still can&apos;t access this frame, please send a DC.
-      </div>
-      <div
-  className="bg-[#8B5CF6] p-3 mt-3 text-base font-semibold cursor-pointer text-white flex items-center justify-center gap-2"
-  onClick={() => sdk.actions.openUrl(sendDC)}
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="size-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
-    />
-  </svg>
-  Send DC
-</div>
-
+        )
+}
+  function Price(){
+    return (
+<div className="flex flex-col w-full px-20 text-lg">
+  <div className="flex flex-row justify-between">
+    <span className="text-[#38BDf8]">Price:</span>
+    <span className="text-[#38BDf8]">${pricerData?.price ?? "N/A"}</span>
+  </div>
+  <div className="flex flex-row justify-between">
+    <span className={pricerData?.t1 != null && pricerData.t1 >= 0 ? "text-green-500" : "text-red-500"}>1H Change:</span>
+    <span className={pricerData?.t1 != null && pricerData.t1 >= 0 ? "text-green-500" : "text-red-500"}>
+      {pricerData?.t1 ?? "N/A"}%
+    </span>
+  </div>
+  <div className="flex flex-row justify-between">
+    <span className={pricerData?.t24 != null && pricerData.t24 >= 0 ? "text-green-500" : "text-red-500"}>24H Change:</span>
+    <span className={pricerData?.t24 != null && pricerData.t24 >= 0 ? "text-green-500" : "text-red-500"}>
+      {pricerData?.t24 ?? "N/A"}%
+    </span>
   </div>
 
+
+</div>
+    )
+  }
+  function Search (){
+    const [searchValue, setSearchValue] = useState("");
+
+    const fetchfid= useCallback(async (searchValue: string) => {
+try{
+  const username= searchValue.includes("@") ? searchValue.replace("@", "") : searchValue;
+
+  const pinataUrl= `https://hub.pinata.cloud/v1/userNameProofByName?name=${username}`
+  const pinataResponse = await axios.get(pinataUrl);
+  const pinataFid = pinataResponse.data.fid;
+  // alert(pinataFid)
+  setRefid(pinataFid)
+
+}catch{
+  alert("please enter a valid username")
+  // console.error('Error fetching data:', error);
+} },[searchValue])
+    return (
+      <div className="flex flex-row items-center justify-around">
+              {Array.isArray(allowanceData?.data) && allowanceData?.data.length > 0 && (
+        <div
+  className="bg-[#8B5CF6] p-2 justify-self-center text-center cursor-pointer flex items-center justify-center rounded-lg"
+  onClick={() => sdk.actions.openUrl(tipUrl)}
+>
+  Tip <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+</svg>
 </div>
 
+      )}
+<div className="flex items-center gap-2">
+<input
+  className="w-[170px] p-2 bg-[#525760] text-base text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-lime-500"
+  type="text"
+  placeholder="search for username"
+  value={searchValue}
+  onChange={(e) => setSearchValue(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      fetchfid(searchValue)
+    }
+  }}
+/>
 
-    );
+  <div className="bg-[#8B5CF6] p-2 rounded-lg"
+      onClick={() => fetchfid(searchValue)}
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="size-6 text-white cursor-pointer"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+    />
+  </svg>
+  </div>
+</div>
+
+  <div
+  className="bg-[#8B5CF6] p-2 items-center justify-center text-center cursor-pointer rounded-lg"
+  onClick={() => sdk.actions.openUrl(shareUrlData)}
+>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M15.75 4.5a3 3 0 1 1 .825 2.066l-8.421 4.679a3.002 3.002 0 0 1 0 1.51l8.421 4.679a3 3 0 1 1-.729 1.31l-8.421-4.678a3 3 0 1 1 0-4.132l8.421-4.679a3 3 0 0 1-.096-.755Z" clipRule="evenodd" />
+</svg>
+</div>
+</div>
+
+    )
   }
+function Mint(){
+
+  const [isClicked, setIsClicked] = useState(false);
+
+
+  const CONTRACT_ADDRESS = "0x3DB019427f05192F8FB64534CF9C0bF5cc596a80";
+  const handleMint = () => {
+    setIsClicked(true);
+    setTimeout(() => {
+      if (isConnected) {
+        sendTx(); // Call sendTx when isConnected is true
+      } else {
+        connect({ connector: config.connectors[0] }); // Otherwise, call connect
+      }
+    }, 500);
+    
+   
+    setTimeout(() => setIsClicked(false), 500); // Reset after animation
+  
+  };
+  const sendTx = useCallback(() => {
+    const data = encodeFunctionData({
+      abi,
+      functionName: "mintNFT",
+      args: [context?.user.fid], // Only passing fid, since recipient is msg.sender
+    });
+    sendTransaction(
+      {
+
+        to: CONTRACT_ADDRESS,
+        data,
+        // value: BigInt("10000000000000") // Mint fee
+
+      },
+      {
+        onSuccess: (hash) => {
+          setTxHash(hash);
+
+        },
+      }
+    );
+  }, [sendTransaction]);
+  return (
+    <div className="flex flex-col">
+        <button
+      onClick={handleMint}
+      disabled={isSendTxPending}
+
+      className="text-white text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
+      style={{
+        background: "linear-gradient(90deg, #8B5CF6, #7C3AED, #A78BFA, #8B5CF6)",
+        backgroundSize: "300% 100%",
+        animation: "gradientAnimation 3s infinite ease-in-out"
+      }}
+    >     
+      <div className={`absolute inset-0 bg-[#38BDF8] transition-all duration-500 ${isClicked ? 'scale-x-100' : 'scale-x-0'}`} style={{ transformOrigin: "center" }}></div>
+      <style>{`
+        @keyframes gradientAnimation {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+       {isConnected ? <MintButton/> : "Connect"}
+    </button>
+    <div className="text-center">
+    {isSendTxError && renderError(sendTxError)}
+    {txHash && (
+                  <div className="mt-2 text-xs">
+                    <div>Hash: {truncateAddress(txHash)}</div>
+                    <div>
+                      Status:{" "}
+                      {isConfirming
+                        ? "Confirming..."
+                        : isConfirmed
+                        ? "Confirmed!"
+                        : "Pending"}
+                    </div>
+                  </div>
+                )}
+                </div>
+    </div>
+  
+  )
 }
+ function MintButton(){
+  return(
+    <div className="flex flex-row gap-2">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
+    <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+  </svg>
+      <span className="relative z-10">Mint your stats</span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
+        <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+      </svg> </div>
+  )
+ }
+
+}
+const renderError = (error: Error | null) => {
+  if (!error) return null;
+  if (error instanceof BaseError) {
+    const isUserRejection =
+    error instanceof UserRejectedRequestError ||
+    (error.cause && error.cause instanceof UserRejectedRequestError);
+  
+
+    if (isUserRejection) {
+      return <div className="text-red-500 text-xs mt-1">Click again to Mint</div>;
+    }
+  }
+
+  return <div className="text-red-500 text-xs mt-1">{error.message}</div>;
+};

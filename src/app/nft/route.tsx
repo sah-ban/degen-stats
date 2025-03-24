@@ -1,4 +1,3 @@
-// import { ImageResponse } from "next/og";
 import { NextRequest} from "next/server";
 import axios from "axios";
 import { ImageResponse } from "@vercel/og";
@@ -9,6 +8,7 @@ export async function GET(req: NextRequest) {
 
   const fid = req.nextUrl.searchParams.get("fid");
   const appUrl = process.env.NEXT_PUBLIC_URL;
+  const now = new Date().toISOString().split("T")[0];
 
   interface AllowanceData {
     snapshot_day: string;
@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
       pointsRank = responseData.pointsRank;
       rainPoints = responseData.rainPoints;
 
-    // console.log(`Fetching data from API for fid: ${fid}`);
     const apiUrl = `https://api.warpcast.com/v2/user?fid=${fid}`;
     const response = await axios.get(apiUrl);
 
@@ -61,8 +60,8 @@ export async function GET(req: NextRequest) {
   
   const imageResponse = new ImageResponse(
     (
-      <div tw="flex flex-col w-full h-full bg-[#1e293b] text-[#FFDEAD]">
-        <div tw="flex items-center justify-center text-white mt-10">
+      <div tw="flex flex-col w-full h-full bg-[#1e293b] text-[#FFDEAD] border-4 border-lime-500 justify-center">
+        <div tw="flex items-center justify-center text-white">
           <img
             src={pfpUrl}
             alt="Profile"
@@ -73,10 +72,12 @@ export async function GET(req: NextRequest) {
             <span tw="flex text-xl text-gray-400">@{username}</span>
           </div>
         </div>
+        <div tw="flex items-center justify-center text-3xl text-sky-400 mt-6">
+          {now}
+        </div>
 
 
-
-        <div tw="flex flex-row items-center justify-between text-[#885aee] mt-2 mx-12">
+        <div tw="flex flex-row items-center justify-between text-[#885aee] mt-6 mx-12">
           <div tw="flex text-2xl">Allowance Rank: {data?.user_rank ?? "N/A"}</div>
           <div tw="flex text-2xl">Points Rank: {pointsRank ?? "N/A"}</div>
         </div>
@@ -112,14 +113,12 @@ export async function GET(req: NextRequest) {
         <div tw="flex flex-col items-center">
 
         </div>
-        <div tw="flex bg-[#FFFACD] mt-8 text-black w-full justify-end px-4">
-          <div tw="text-1xl">Frame by @cashlessman.eth</div>
-        </div>
+
       </div>
     ),
     {
       width: 600,
-      height: 400,
+      height: 600,
     }
   );
   const headers = new Headers(imageResponse.headers);
