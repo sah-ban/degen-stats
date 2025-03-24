@@ -81,8 +81,10 @@ export default function Demo(
       }
       setAddFrameResult(
         result.notificationDetails
-          ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
-          : "Added, got no notification details"
+          // ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
+          // : "Added, got no notification details"
+          ? `Frame Added`
+          : "Frame Added"
       );
     } catch (error) {
       if (error instanceof AddFrame.RejectedByUser) {
