@@ -522,16 +522,7 @@ useEffect(() => {
 
 const STORAGE_KEY = "lastVisitDate";
 
-useEffect(() => {
-  const today = new Date().toISOString().split("T")[0]; // Get only YYYY-MM-DD
 
-  const storedDate = localStorage.getItem(STORAGE_KEY);
-
-  if (!storedDate || storedDate !== today) {
-    alert("Hello"); // Show alert if first visit or new day
-    localStorage.setItem(STORAGE_KEY, today); // Store today's date
-  }
-}, []);
 // useEffect(() => {
 //   if (followData && followData?.followBack === "no") {
 //     sdk.actions.viewProfile({ fid: 268438 })
@@ -1423,6 +1414,23 @@ function Mint(){
   const [isClicked, setIsClicked] = useState(false);
 
 
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+  const today = new Date().toISOString().split("T")[0]; // Get only YYYY-MM-DD
+  
+  const storedDate = localStorage.getItem(STORAGE_KEY);
+  useEffect(() => {
+
+  
+    if (!storedDate || storedDate !== today && isConnected && pointsData?.pointsRank && rainData?.rainPoints) {
+      sendTx();; // Show alert if first visit or new day
+      localStorage.setItem(STORAGE_KEY, today); // Store today's date
+    }
+  }, []);
+  const [isVisible, setIsVisible] = useState(!storedDate || storedDate !== today && isConnected && pointsData?.pointsRank && rainData?.rainPoints);
+
   const CONTRACT_ADDRESS = "0x3DB019427f05192F8FB64534CF9C0bF5cc596a80";
   const handleMint = () => {
     setIsClicked(true);
@@ -1499,6 +1507,25 @@ function Mint(){
                   </div>
                 )}
                 </div>
+                {    isVisible && (
+      <motion.div
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        exit={{ y: -100 }}
+        transition={{ type: "spring", stiffness: 100, damping: 10 }}
+        className="fixed top-0 left-0 w-full bg-[#1e293b] text-white text-center p-4 shadow-md mt-10"
+      >
+        <div className="relative">
+          <p>Welcome to my website</p>
+          <motion.div
+            initial={{ width: "100%" }}
+            animate={{ width: "0%" }}
+            transition={{ duration: 3, ease: "linear" }}
+            className="absolute bottom-0 left-0 h-1 bg-white"
+          />
+        </div>
+      </motion.div>
+    )}
     </div>
   
   )
