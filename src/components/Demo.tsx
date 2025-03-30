@@ -27,7 +27,7 @@ import {
 } from "wagmi";
 import { config } from "~/components/providers/WagmiProvider";
 import { BaseError, UserRejectedRequestError } from "viem";
-import { truncateAddress } from "~/lib/truncateAddress";
+// import { truncateAddress } from "~/lib/truncateAddress";
 import { Menu, User, Settings, X } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -806,11 +806,13 @@ const priceValue = pricerData?.price || 0;
   }
 
   function Details () {
+    // className="text-white text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
+
     return(
       <div className="flex flex-col">
          <div
   // className="bg-[#8B5CF6] p-3 mt-2 mx-2 justify-self-center flex-1 text-center cursor-pointer"
-  className={`bg-[#8B5CF6] p-3 mt-2 justify-self-center flex-1 text-center cursor-pointer ${context?.client.added ? "hidden" : ""}`}
+  className={`bg-[#8B5CF6] font-semibold rounded-xl p-3 mt-2 justify-self-center flex-1 text-center cursor-pointer  ${context?.client.added ? "hidden" : ""}`}
   onClick={handleClick}
   >
 {clicked ? addFrameResult : "Add Frame"}</div>
@@ -1487,20 +1489,20 @@ function Mint(){
     </button>
     <div className="text-center">
     {isSendTxError && renderError(sendTxError)}
-    {txHash && (
-                  <div className="mt-2 text-xs">
-                    <div>Hash: {truncateAddress(txHash)}</div>
-                    <div>
-                      Status:{" "}
-                      {isConfirming
-                        ? "Confirming..."
-                        : isConfirmed
-                        ? "Confirmed!"
-                        : "Pending"}
-                    </div>
-                  </div>
-                )}
+
                 </div>
+<a href="https://app.degen.tips/"
+      className="text-white mt-3 text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
+      style={{
+        background: "linear-gradient(90deg, #8B5CF6, #7C3AED, #A78BFA, #8B5CF6)",
+        backgroundSize: "300% 100%",
+        animation: "gradientAnimation 3s infinite ease-in-out"
+      }}
+    >     
+
+      Claim $DEGEN
+    </a>
+
     </div>
   
   )
@@ -1511,7 +1513,11 @@ function Mint(){
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
     <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
   </svg>
-      <span className="relative z-10">Mint your stats</span>
+      <span className="relative z-10">  {isConfirming
+                        ? "Minting..."
+                        : isConfirmed
+                        ? "Minted!"
+                        : "Mint your stats"}</span>
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
         <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
       </svg> </div>
