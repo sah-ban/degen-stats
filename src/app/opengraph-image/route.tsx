@@ -85,21 +85,33 @@ export async function GET(req: NextRequest) {
             <span tw="text-3xl">Allowance:</span>
             <span tw="text-3xl">{data?.tip_allowance ?? "N/A"}</span>
           </div>
-          <div tw="flex flex-row justify-between">
-            <span tw="text-3xl">Remaining:</span>
-            <div tw="flex">
-              <span tw="text-3xl">{data?.remaining_tip_allowance ?? "N/A"}</span>
-                {data?.tip_allowance &&
-                               <span tw="text-3xl ml-3">
+          <div tw="relative flex flex-row justify-between items-center border border-[#8B5CF6] rounded-lg overflow-hidden text-3xl">
+  {/* Background Progress Bar (Remaining Amount, Right-Aligned) */}
+  <div
+    tw="absolute top-0 right-0 h-full bg-[#8B5CF6] transition-all duration-300"
+    style={{
+      width: `${
+        data?.remaining_tip_allowance && data?.tip_allowance
+          ? (Number(data?.remaining_tip_allowance) / Number(data?.tip_allowance)) * 100
+          : 0
+      }%`,
+    }}
+  />
 
-                 ({(
-                      (Number(data?.remaining_tip_allowance) /
-                        Number(data?.tip_allowance)) *
-                      100
-                    ).toFixed(1) ?? "N/A"}%)
-              </span>}
-            </div>
-          </div>
+  {/* Content */}
+  <div tw="relative flex justify-between w-full font-medium">
+    <span>Remaining:</span>
+    {data?.tip_allowance && (
+        <span>
+          ({((Number(data?.remaining_tip_allowance) / Number(data?.tip_allowance)) * 100).toFixed(1) ?? "N/A"}%)
+        </span>
+      )}
+    <div tw="flex">
+      <span>{data?.remaining_tip_allowance ?? "N/A"}</span>
+
+    </div>
+  </div>
+</div>
           <div tw="flex flex-row justify-between">
             <span tw="text-3xl">Points:</span>
             <span tw="text-3xl">{points ?? "N/A"}</span>

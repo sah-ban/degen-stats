@@ -535,14 +535,6 @@ const handleClick = () => {
   addFrame(); // Call the existing addFrame function
   setClicked(true); // Update text to "Added"
 };
-const date = new Date(); // Create the Date object
-const formattedDate = date.toLocaleDateString('en-GB').replace(/\//g, '-');
-
-const formattedTime = date.toLocaleTimeString('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false, // Use 24-hour format
-}); 
 const formatSnapshotDay = (dateString: string) => {
   const date = new Date(dateString);
   const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
@@ -796,9 +788,12 @@ const priceValue = pricerData?.price || 0;
 <div className="w-auto bg-slate-900 text-white mt-3 mx-2 flex flex-col justify-between h-[calc(100vh-130px)]">
   <Search/>
   <Stats />
- <Sum/>
+  <div className="flex flex-row">
+  <Sum/>  <Price/>
+  </div>
+ 
  <Mint/>
-  <Price/>
+
   <Details />
 </div>
 
@@ -895,39 +890,54 @@ const priceValue = pricerData?.price || 0;
           <span className="flex text-gray-400">@{profileData?.username ?? "unknown"}</span>
         </div>
       </div>
-      <div className="flex justify-center text-[#38BDf8] mt-1">{formattedTime}&nbsp; &nbsp;{formattedDate}</div>
-      <div className="flex flex-row items-center justify-between text-[#885aee] mt-1 px-3">
+      <div className="flex flex-row items-center justify-center text-[#885aee] mt-1 gap-3">
         <div className="flex text-lg">Allowance Rank: {allowanceData?.data[0]?.user_rank ?? "N/A"}</div>
         <div className="flex text-lg">Points Rank: {pointsData?.pointsRank ?? "N/A"}</div>
 
    
         </div>
-        <div className="flex flex-col w-full text-[#86e635] mt-2">
+        <div className="flex flex-col w-full text-[#86e635]">
 
         <div className="flex flex-row justify-between px-12">
           <span>Allowance:</span>
           <span>{allowanceData?.data[0]?.tip_allowance ?? "N/A"}</span>
         </div>
 
-        <div className="flex flex-row justify-between px-12">
-<span>Remaining:</span>
-<div className="flex">
-  <span>{allowanceData?.data[0]?.remaining_tip_allowance ?? "N/A"} </span>
-  {Array.isArray(allowanceData?.data) && allowanceData?.data.length > 0 &&
-                               <span className="ml-1">
+        <div className="relative flex flex-row justify-between items-center px-10 mx-2 border border-[#8B5CF6] rounded-lg overflow-hidden">
+  {/* Background Progress Bar (Remaining Amount, Right-Aligned) */}
+  <div
+    className="absolute top-0 right-0 h-full bg-[#8B5CF6] transition-all duration-300"
+    style={{
+      width: `${
+        allowanceData?.data[0]?.remaining_tip_allowance && allowanceData?.data[0]?.tip_allowance
+          ? (Number(allowanceData?.data[0]?.remaining_tip_allowance) / Number(allowanceData?.data[0]?.tip_allowance)) * 100
+          : 0
+      }%`,
+    }}
+  />
 
-({((Number(allowanceData?.data[0]?.remaining_tip_allowance) / Number(allowanceData?.data[0]?.tip_allowance)) * 100).toFixed(1) ?? "N/A"}%)
-              </span>}
+  {/* Content */}
+  <div className="relative flex justify-between w-full font-medium">
+    <span>Remaining:</span>
+    {Array.isArray(allowanceData?.data) && allowanceData?.data.length > 0 && (
+        <span>
+          ({((Number(allowanceData?.data[0]?.remaining_tip_allowance) / Number(allowanceData?.data[0]?.tip_allowance)) * 100).toFixed(1) ?? "N/A"}%)
+        </span>
+      )}
+    <div className="flex">
+      <span>{allowanceData?.data[0]?.remaining_tip_allowance ?? "N/A"}</span>
 
-
+    </div>
+  </div>
 </div>
-</div>
+
+
         <div className="flex flex-row justify-between px-12">
           <span >Points:</span>
           <span >{pointsData?.points ?? "0"}</span>
 
         </div>
-        <div className="flex flex-row justify-between px-12 mb-3">
+        <div className="flex flex-row justify-between px-12 mb-1">
           <span >Raindrops:</span>
           <span >{rainData?.rainPoints ?? "0"}</span>
 
@@ -1288,21 +1298,22 @@ key={index}
 //   }
 function Sum( ) {
   return (
-    <div className="flex flex-col w-full px-10 text-lg">
+    <div className="flex flex-col w-1/2 text-base border-r border-gray-300 px-3">
+<div className="text-center">Tips given</div>
       <div className="flex flex-row justify-between">
-        <span className="text-green-500">Valid Tips given:</span>
+        <span className="text-green-500">Valid:</span>
         <span className="text-green-500">
          {totalValidTip}  |  ${(totalValidTip * priceValue).toFixed(2)}
         </span>
       </div>
       <div className="flex flex-row justify-between">
-        <span className="text-red-500">Invalid Tips given:</span>
+        <span className="text-red-500">Invalid:</span>
         <span className="text-red-500">
           {totalInvalidTip}  |  ${(totalInvalidTip * priceValue).toFixed(2)}
         </span>
       </div>
       <div className="flex flex-row justify-between">
-        <span>Total Tips given:</span>
+        <span>Total:</span>
         <span>
           {TotalTips}  |  ${(TotalTips * priceValue).toFixed(2)}
         </span>
@@ -1313,9 +1324,11 @@ function Sum( ) {
 }
   function Price(){
     return (
-<div className="flex flex-col w-full px-20 text-lg">
+<div className="flex flex-col w-1/2 text-base px-3">
+<div className="text-center">Price</div>
+
   <div className="flex flex-row justify-between">
-    <span className="text-[#38BDf8]">Price:</span>
+    <span className="text-[#38BDf8]">1 $DEGEN:</span>
     <span className="text-[#38BDf8]">${pricerData?.price ?? "N/A"}</span>
   </div>
   <div className="flex flex-row justify-between">
