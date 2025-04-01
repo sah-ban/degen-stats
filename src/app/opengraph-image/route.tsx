@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
             <span tw="text-3xl">Allowance:</span>
             <span tw="text-3xl">{data?.tip_allowance ?? "N/A"}</span>
           </div>
-          <div tw="relative flex flex-row justify-between items-center border border-[#8B5CF6] rounded-lg overflow-hidden text-3xl">
+          <div tw="relative flex flex-row justify-between items-center border border-[#8B5CF6] rounded-lg overflow-hidden text-3xl px-2">
   {/* Background Progress Bar (Remaining Amount, Right-Aligned) */}
   <div
     tw="absolute top-0 right-0 h-full bg-[#8B5CF6] transition-all duration-300"

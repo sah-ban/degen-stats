@@ -530,6 +530,69 @@ const STORAGE_KEY = "lastVisitDate";
 
 //   }
 // }, [followData]);
+const getNextResetTimes = () => {
+  const now = new Date();
+  const utcNow = now.getTime();
+
+  const intervals = [0, 6, 12, 18]; // Every 6 hours from midnight
+  let nextIntervalReset = null;
+  for (let hour of intervals) {
+    const resetTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, 0, 0);
+    if (resetTime > utcNow) {
+      nextIntervalReset = resetTime;
+      break;
+    }
+  }
+  if (!nextIntervalReset) {
+    nextIntervalReset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0);
+  }
+
+  let dailyReset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 2, 5, 0);
+  if (dailyReset <= utcNow) {
+    dailyReset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 2, 5, 0);
+  }
+
+  return {
+    dailyReset,
+    nextIntervalReset
+  };
+};
+const CountdownTimer = () => {
+  const [timeLefts, setTimeLefts] = useState(() => {
+    const { dailyReset, nextIntervalReset } = getNextResetTimes();
+    return {
+      daily: Math.max(dailyReset - Date.now(), 0),
+      interval: Math.max(nextIntervalReset - Date.now(), 0)
+    };
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const { dailyReset, nextIntervalReset } = getNextResetTimes();
+      setTimeLefts({
+        daily: Math.max(dailyReset - Date.now(), 0),
+        interval: Math.max(nextIntervalReset - Date.now(), 0)
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  return (
+    <div className="text-center border-b border-lime-400">
+      <p>Allowance refreshes in {formatTime(timeLefts.daily)}</p>
+      <p>Points will be updated in {formatTime(timeLefts.interval)}</p>
+    </div>
+  );
+};
 
 const handleClick = () => {
   addFrame(); // Call the existing addFrame function
@@ -788,6 +851,7 @@ const priceValue = pricerData?.price || 0;
 <div className="w-auto bg-slate-900 text-white mt-3 mx-2 flex flex-col justify-between h-[calc(100vh-130px)]">
   <Search/>
   <Stats />
+  <CountdownTimer/>
   <div className="flex flex-row">
   <Sum/>  <Price/>
   </div>
@@ -903,7 +967,7 @@ const priceValue = pricerData?.price || 0;
           <span>{allowanceData?.data[0]?.tip_allowance ?? "N/A"}</span>
         </div>
 
-        <div className="relative flex flex-row justify-between items-center px-10 mx-2 border border-[#8B5CF6] rounded-lg overflow-hidden">
+        <div className="relative flex flex-row justify-between items-center px-2 mx-10 border border-[#8B5CF6] rounded-lg overflow-hidden">
   {/* Background Progress Bar (Remaining Amount, Right-Aligned) */}
   <div
     className="absolute top-0 right-0 h-full bg-[#8B5CF6] transition-all duration-300"
