@@ -536,7 +536,7 @@ const getNextResetTimes = () => {
 
   const intervals = [0, 6, 12, 18]; // Every 6 hours from midnight
   let nextIntervalReset = null;
-  for (let hour of intervals) {
+  for (const hour of intervals) {
     const resetTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, 0, 0);
     if (resetTime > utcNow) {
       nextIntervalReset = resetTime;
