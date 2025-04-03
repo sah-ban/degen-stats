@@ -1530,7 +1530,7 @@ function Mint(){
 
         to: CONTRACT_ADDRESS,
         data,
-        // value: BigInt("10000000000000") // Mint fee
+        value: BigInt("10000000000000") // Mint fee
 
       },
       {
