@@ -18,6 +18,7 @@ import Image from 'next/image';
 import axios from "axios";
 import { encodeFunctionData } from 'viem';
 import { abi } from '../contracts/abi';
+import { claimAbi } from '../contracts/claimAbi';
 import {
   useAccount,
   useSendTransaction,
@@ -26,7 +27,7 @@ import {
 
 } from "wagmi";
 import { config } from "~/components/providers/WagmiProvider";
-import { BaseError, UserRejectedRequestError } from "viem";
+// import { BaseError, UserRejectedRequestError } from "viem";
 // import { truncateAddress } from "~/lib/truncateAddress";
 import { Menu, User, Settings, X } from "lucide-react";
 import { motion } from "framer-motion";
@@ -43,6 +44,7 @@ export default function Demo(
   const [activeBoard, setActiveBoard] = useState<'RainBoard' | 'PointsBoard' | 'AllowanceBoard'>('RainBoard'); // Explicitly typed
   const { isConnected } = useAccount();
   const [txHash, setTxHash] = useState<string | null>(null);
+const [shared, setShared]= useState(false)  
 
 
   // const [addFrameResult, setAddFrameResult] = useState("");
@@ -857,7 +859,7 @@ const priceValue = pricerData?.price || 0;
   </div>
  
  <Mint/>
-
+<Claim/>
   <Details />
 </div>
 
@@ -1414,6 +1416,10 @@ function Sum( ) {
   }
   function Search (){
     const [searchValue, setSearchValue] = useState("");
+    const handleShare = () => {
+      setShared(true);
+      sdk.actions.openUrl(tipUrl);
+    };
 
     const fetchfid= useCallback(async (searchValue: string) => {
 try{
@@ -1478,7 +1484,7 @@ try{
 
   <div
   className="bg-[#8B5CF6] p-2 items-center justify-center text-center cursor-pointer rounded-lg"
-  onClick={() => sdk.actions.openUrl(shareUrlData)}
+  onClick={handleShare}
 >
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
   <path fillRule="evenodd" d="M15.75 4.5a3 3 0 1 1 .825 2.066l-8.421 4.679a3.002 3.002 0 0 1 0 1.51l8.421 4.679a3 3 0 1 1-.729 1.31l-8.421-4.678a3 3 0 1 1 0-4.132l8.421-4.679a3 3 0 0 1-.096-.755Z" clipRule="evenodd" />
@@ -1530,7 +1536,7 @@ function Mint(){
 
         to: CONTRACT_ADDRESS,
         data,
-        value: BigInt("10000000000000") // Mint fee
+        // value: BigInt("10000000000000") // Mint fee
 
       },
       {
@@ -1564,21 +1570,7 @@ function Mint(){
       `}</style>
        {isConnected ? <MintButton/> : "Connect"}
     </button>
-    <div className="text-center">
-    {isSendTxError && renderError(sendTxError)}
 
-                </div>
-<a href="https://app.degen.tips/"
-      className="text-white mt-3 text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
-      style={{
-        background: "linear-gradient(90deg, #8B5CF6, #7C3AED, #A78BFA, #8B5CF6)",
-        backgroundSize: "300% 100%",
-        animation: "gradientAnimation 3s infinite ease-in-out"
-      }}
-    >     
-
-      Claim $DEGEN
-    </a>
 
     </div>
   
@@ -1678,22 +1670,138 @@ function Mint(){
     </div>
   );
 }
+function Claim(){
+
+  const [isClicked, setIsClicked] = useState(false);
 
 
+  const today = new Date().toISOString().split("T")[0]; // Get only YYYY-MM-DD
+  
+  const storedDate = localStorage.getItem(STORAGE_KEY);
+  useEffect(() => {
+
+  
+    if (!storedDate || storedDate !== today && isConnected && pointsData?.pointsRank && rainData?.rainPoints) {
+      sendTx();; // Show alert if first visit or new day
+      localStorage.setItem(STORAGE_KEY, today); // Store today's date
+    }
+  }, []);
+  const CONTRACT_ADDRESS = "0x348775AC50b487Bb73551b2DEe0842aed2B30922";
+  const handleClaim = () => {
+    setIsClicked(true);
+    setTimeout(() => {
+      if (shared) {
+        sendTx(); // Call sendTx when isConnected is true
+      } else {
+        setShared(true)
+        sdk.actions.openUrl(shareUrlData); // Otherwise, call connect
+      }
+    }, 500);
+    
+   
+    setTimeout(() => setIsClicked(false), 500); // Reset after animation
+  
+  };
+  const sendTx = useCallback(() => {
+    const data = encodeFunctionData({
+      abi:claimAbi,
+      functionName: "claim",
+      args: [], 
+    });
+    sendTransaction(
+      {
+
+        to: CONTRACT_ADDRESS,
+        data,
+        // value: BigInt("10000000000000") // Mint fee
+
+      },
+      {
+        onSuccess: (hash) => {
+          setTxHash(hash);
+
+        },
+      }
+    );
+  }, [sendTransaction]);
+  return (
+    <div className="flex flex-col gap-2 mt-2">
+<button
+  onClick={handleClaim}
+  disabled={isSendTxPending}
+  className="text-white flex-1 text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
+  style={{
+    background: "linear-gradient(90deg, #8B5CF6, #7C3AED, #A78BFA, #8B5CF6)",
+    backgroundSize: "300% 100%",
+    animation: "reverseGradient 3s infinite ease-in-out"
+  }}
+>
+  <div
+    className={`absolute inset-0 bg-[#38BDF8] transition-all duration-500 ${
+      isClicked ? "scale-x-100" : "scale-x-0"
+    }`}
+    style={{ transformOrigin: "center" }}
+  ></div>
+
+  <style>{`
+    @keyframes reverseGradient {
+      0% { background-position: 100% 50%; }
+      50% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+  `}</style>
+
+  {shared ? <ClaimButton /> : "Share The mini-app to claim 10 $DEGEN"}
+</button>
+
+    <div >
+    <a href="https://app.degen.tips/"
+      className="text-white flex-1 text-center py-3 rounded-xl font-semibold text-lg shadow-lg relative overflow-hidden transform transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center gap-2"
+      style={{
+        background: "linear-gradient(90deg, #8B5CF6, #7C3AED, #A78BFA, #8B5CF6)",
+        backgroundSize: "300% 100%",
+        animation: "gradientAnimation 3s infinite ease-in-out"
+      }}
+    >
+      Claim Season Rewards
+    </a>
+                </div>
+                
+    </div>
+  
+  )
+}
+
+function ClaimButton(){
+  return(
+    <div className="flex flex-row gap-2">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
+    <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+  </svg>
+      <span className="relative z-10">  {isConfirming
+                        ? "Claiming..."
+                        : isConfirmed
+                        ? "Claimeded!"
+                        : "Claim 10 Degen"}</span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 relative z-10"> 
+        <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+      </svg> </div>
+  )
+ }
  
 }
-const renderError = (error: Error | null) => {
-  if (!error) return null;
-  if (error instanceof BaseError) {
-    const isUserRejection =
-    error instanceof UserRejectedRequestError ||
-    (error.cause && error.cause instanceof UserRejectedRequestError);
+// const renderError = (error: Error | null) => {
+//   if (!error) return null;
+//   if (error instanceof BaseError) {
+//     const isUserRejection =
+//     error instanceof UserRejectedRequestError ||
+//     (error.cause && error.cause instanceof UserRejectedRequestError);
   
 
-    if (isUserRejection) {
-      return <div className="text-red-500 text-xs mt-1">Click again to Mint</div>;
-    }
-  }
+//     if (isUserRejection) {
+//       return <div className="text-red-500 text-xs mt-1">Click again to Mint</div>;
+//     }
+//   }
 
-  return <div className="text-red-500 text-xs mt-1">{error.message}</div>;
-};
+//   return <div className="text-red-500 text-xs mt-1">{error.message}</div>;
+// };
