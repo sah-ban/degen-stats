@@ -137,8 +137,8 @@ const [shared, setShared]= useState(false)
 
   const {
     sendTransaction,
-    error: sendTxError,
-    isError: isSendTxError,
+    // error: sendTxError,
+    // isError: isSendTxError,
     isPending: isSendTxPending,
   } = useSendTransaction();
 
